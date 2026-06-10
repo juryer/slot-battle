@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio – J・K</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+          --bg:#f7f5f2; --bg2:#ffffff; --ink:#1a1814; --ink2:#5a5550; --ink3:#9a948e;
+          --accent:#2d6a4f; --accent2:#52b788; --border:#e4e0db; --card-bg:#ffffff;
+          --shadow:0 2px 20px rgba(0,0,0,0.07); --shadow-lg:0 8px 40px rgba(0,0,0,0.10);
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
+        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(247,245,242,0.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 48px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+        .nav-logo { font-family: 'Shippori Mincho', serif; font-size: 18px; font-weight: 700; color: var(--ink); text-decoration: none; letter-spacing: 0.04em; }
+        .nav-links { display: flex; gap: 32px; list-style: none; }
+        .nav-links a { font-size: 13px; font-weight: 500; color: var(--ink2); text-decoration: none; letter-spacing: 0.03em; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--accent); }
+        .hero { min-height: 100vh; display: flex; align-items: center; padding: 100px 48px 80px; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -120px; right: -80px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(82,183,136,0.12) 0%, transparent 70%); pointer-events: none; }
+        .hero::after { content: ''; position: absolute; bottom: -60px; left: 10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(45,106,79,0.07) 0%, transparent 70%); pointer-events: none; }
+        .hero-inner { max-width: 900px; }
+        .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; opacity: 0; animation: fadeUp 0.6s 0.1s forwards; }
+        .hero-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--accent); }
+        .hero-name { font-family: 'Shippori Mincho', serif; font-size: clamp(52px, 8vw, 96px); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 24px; opacity: 0; animation: fadeUp 0.7s 0.2s forwards; }
+        .hero-name span { color: var(--accent); }
+        .hero-bio { font-size: 17px; color: var(--ink2); max-width: 520px; line-height: 1.8; margin-bottom: 40px; opacity: 0; animation: fadeUp 0.7s 0.35s forwards; }
+        .hero-cta { display: flex; gap: 16px; flex-wrap: wrap; opacity: 0; animation: fadeUp 0.7s 0.5s forwards; }
+        .btn-primary { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #fff; padding: 13px 28px; border-radius: 6px; font-size: 14px; font-weight: 500; text-decoration: none; letter-spacing: 0.02em; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; box-shadow: 0 2px 12px rgba(45,106,79,0.25); }
+        .btn-primary:hover { background: #245a41; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(45,106,79,0.35); }
+        .btn-secondary { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: var(--ink); padding: 13px 28px; border-radius: 6px; border: 1.5px solid var(--border); font-size: 14px; font-weight: 500; text-decoration: none; letter-spacing: 0.02em; transition: border-color 0.2s, color 0.2s, transform 0.15s; }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+        section { padding: 96px 48px; }
+        .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-label::after { content: ''; flex: 1; max-width: 40px; height: 1px; background: var(--accent2); }
+        .section-title { font-family: 'Shippori Mincho', serif; font-size: clamp(28px, 4vw, 40px); font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 48px; }
+        .about { background: var(--bg2); border-top: 1px solid var(--border); }
+        .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; max-width: 960px; }
+        .about-text { font-size: 16px; color: var(--ink2); line-height: 1.9; }
+        .about-text p + p { margin-top: 16px; }
+        .about-facts { display: flex; flex-direction: column; gap: 20px; }
+        .fact-item { padding: 20px 24px; background: var(--bg); border-radius: 10px; border: 1px solid var(--border); }
+        .fact-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+        .fact-value { font-size: 15px; font-weight: 500; color: var(--ink); }
+        .works { background: var(--bg); }
+        .works-grid { display: grid; gap: 32px; max-width: 960px; }
+        .work-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); transition: transform 0.25s, box-shadow 0.25s; display: grid; grid-template-columns: 1fr 2fr; }
+        .work-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .work-thumb { background: linear-gradient(135deg, #2d5a3d 0%, #4a8c62 50%, #2d6a4f 100%); display: flex; align-items: center; justify-content: center; min-height: 220px; position: relative; overflow: hidden; }
+        .work-thumb::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 50%, rgba(162,232,193,0.35), transparent 60%); }
+        .work-body { padding: 32px 36px; }
+        .work-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .tag { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 20px; background: rgba(45,106,79,0.08); color: var(--accent); border: 1px solid rgba(45,106,79,0.2); }
+        .work-title { font-family: 'Shippori Mincho', serif; font-size: 22px; font-weight: 700; margin-bottom: 12px; color: var(--ink); }
+        .work-desc { font-size: 14px; color: var(--ink2); line-height: 1.8; margin-bottom: 20px; }
+        .work-features { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+        .work-feature { font-size: 13px; color: var(--ink2); display: flex; align-items: flex-start; gap: 6px; }
+        .work-feature::before { content: '✓'; color: var(--accent2); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+        .work-meta { display: flex; align-items: center; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--border); }
+        .work-stats { display: flex; gap: 20px; }
+        .stat { font-size: 12px; color: var(--ink3); }
+        .stat strong { color: var(--ink); font-weight: 600; }
+        .work-link { font-size: 13px; font-weight: 500; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 4px; transition: gap 0.2s; }
+        .work-link:hover { gap: 8px; }
+        .skills { background: var(--bg2); border-top: 1px solid var(--border); }
+        .skills-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 960px; }
+        .skill-group { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; }
+        .skill-group-title { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 16px; }
+        .skill-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .skill-chip { font-size: 13px; font-weight: 500; padding: 5px 12px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--border); color: var(--ink); }
+        footer { background: #eeeae4; color: var(--ink3); padding: 48px; text-align: center; border-top: 1px solid var(--border); }
+        .footer-name { font-family: 'Shippori Mincho', serif; font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 16px; }
+        .footer-links { display: flex; justify-content: center; gap: 24px; margin-bottom: 32px; }
+        .footer-links a { font-size: 13px; color: var(--ink3); text-decoration: none; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--accent); }
+        .footer-copy { font-size: 12px; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s, transform 0.6s; }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+        @media (max-width: 768px) {
+          nav { padding: 0 24px; } .nav-links { display: none; }
+          .hero { padding: 80px 24px 48px; min-height: auto; } .hero-name { font-size: 48px; }
+          .hero-bio { font-size: 15px; word-break: break-word; overflow-wrap: break-word; }
+          .hero-cta { flex-direction: column; } .btn-primary, .btn-secondary { text-align: center; justify-content: center; }
+          section { padding: 56px 24px; } .about-grid { grid-template-columns: 1fr; gap: 32px; }
+          .work-card { grid-template-columns: 1fr; } .work-thumb { height: 200px; }
+          .work-body { padding: 24px; } .skills-grid { grid-template-columns: 1fr; }
+          .work-features { grid-template-columns: 1fr; } .work-meta { flex-direction: column; gap: 12px; }
+          footer { padding: 40px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="#" class="nav-logo">J・K</a>
+    <ul class="nav-links">
+        <li><a href="#about">自己紹介</a></li>
+        <li><a href="#works">制作物</a></li>
+        <li><a href="#skills">スキル</a></li>
+        <li><a href="https://github.com/juryer" target="_blank">GitHub</a></li>
+    </ul>
+</nav>
+
+<section class="hero">
+    <div class="hero-inner">
+        <div class="hero-eyebrow">Portfolio</div>
+        <h1 class="hero-name">J・K<span>.</span></h1>
+        <p class="hero-bio">
+            大学卒業後、４年ほどテスト業務を経験。<br>
+            設計・プログラマを目指してプログラミング学習を開始しました。<br>
+            できることは少ないですが地に足をつけ、１つずつ精進します。
+        </p>
+        <div class="hero-cta">
+            <a href="#works" class="btn-primary">制作物を見る →</a>
+            <a href="https://github.com/juryer" target="_blank" class="btn-secondary">GitHub を見る</a>
+        </div>
+    </div>
+</section>
+
+<section class="about" id="about">
+    <div class="section-label">About</div>
+    <h2 class="section-title reveal">自己紹介</h2>
+    <div class="about-grid">
+        <div class="about-text reveal">
+            <p>音楽とアニメが好きなエンジニア志望です。
+                <br>
+                エンジニアの先輩たちに追いつけるよう精進します。
+                <br>
+                最近はAIを活用して自分が使いたいアプリを開発しています。</p>
+        </div>
+        <div class="about-facts reveal">
+            <div class="fact-item"><div class="fact-label">現在取り組んでいる学習</div><div class="fact-value">Javaアプリケーション開発 / Androidアプリ開発</div></div>
+            <div class="fact-item"><div class="fact-label">興味・趣味</div><div class="fact-value">音楽 / アニメ / ゲーム</div></div>
+            <div class="fact-item"><div class="fact-label">目標</div><div class="fact-value">不具合が少ない開発ができるエンジニアになること</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="works" id="works">
+    <div class="section-label">Works</div>
+    <h2 class="section-title reveal">制作物</h2>
+    <div class="works-grid">
+<div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/Herochan-Quest/main/Herochan_quest.png" alt="算数パズルバトルサムネイル" style="width:100%; height:100%; object-fit:cover; display:block;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Kotlin</span><span class="tag">Android</span><span class="tag">MVVM</span><span class="tag">Gson</span></div>
+                <h3 class="work-title">勇者ちゃんクエスト</h3>
+                <p style="display:inline-block; background:#f03738; color:white; font-size:11px; padding:3px 10px; border-radius:20px; margin-bottom:8px;">🚧 開発中・随時更新</p>
+                <p class="work-desc">数字パネルをなぞって合計10を作り、敵を倒すパズルRPGです。ダンジョンモードでは心強い相棒たちと強敵に挑み、トレーニングモードでは99秒のタイムアタックでハイスコアを狙います。AIと対話しながらゼロから設計・開発したはじめてのスマホゲームです。
+                    今後のアップデートで新機能、より強い敵の追加、BGMの実装などを予定しています。
+                </p>
+                <div class="work-features">
+                    <div class="work-feature">パネルを操作して算数パズル</div>
+                    <div class="work-feature">ダンジョンモード</div>
+                    <div class="work-feature">トレーニングモード（99秒スコアアタック）</div>
+                    <div class="work-feature">3キャラクターの必殺技（バースト）</div>
+                    <div class="work-feature">コンボ倍率・20達成ボーナス</div>
+                    <div class="work-feature">ハイスコア保存・盤面隠し画像演出</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>10</strong> クラス</div><div class="stat"><strong>約2,500</strong> 行</div><div class="stat"><strong>Kotlin 1.9</strong></div></div>
+		    <a href="https://github.com/juryer/Herochan-Quest" target="_blank" class="work-link">GitHub で見る →</a>
+		    <a href="https://github.com/juryer/Herochan-Quest/releases/tag/v1.0" target="_blank" class="work-link" style=margin-left:8px>APK をダウンロード →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/my-web-page/main/image.webp" alt="コード進行管理アプリ画面" style="width:100%; height:100%; object-fit:contain; display:block; background:#1a1a2e; padding:8px;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Java</span><span class="tag">Swing</span><span class="tag">Gson</span><span class="tag">MIDI</span></div>
+                <h3 class="work-title">コード進行管理アプリ</h3>
+                <p class="work-desc">作曲をしている時に「このコード進行をメモしておきたい」という場面があります。
+                    <br>
+                    そのモヤモヤを解決するために開発したツールです。
+                    <br>
+                    AIを活用しながら楽曲をAメロ・サビなどの単位で構成できるエディタやMIDIファイル出力など作曲をサポートする機能をゼロから設計・開発しました。</p>
+                <div class="work-features">
+                    <div class="work-feature">コード進行の登録・管理</div>
+                    <div class="work-feature">ディグリーネームどちらでも入力可能</div>
+                    <div class="work-feature">曲単位でコード進行の作成も可能</div>
+                    <div class="work-feature">MIDIファイル出力（BPM・拍子・移調対応）</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>20</strong> クラス</div><div class="stat"><strong>4,736</strong> 行</div><div class="stat"><strong>Java 21</strong></div></div>
+                    <a href="https://github.com/juryer/ChordProgressionApp" target="_blank" class="work-link">GitHub で見る →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/my-web-page/main/chord_progx.png" alt="コード進行管理Xイメージ" style="width:100%; height:100%; object-fit:contain; display:block; background:#1a1a2e; padding:8px;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Java</span><span class="tag">Swing</span><span class="tag">Gson</span><span class="tag">MIDI</span></div>
+                <h3 class="work-title">コード進行管理アプリ X</h3>
+                <p style="display:inline-block; background:#f03738; color:white; font-size:11px; padding:3px 10px; border-radius:20px; margin-bottom:8px;">🚧 開発中・随時更新</p>
+                <p class="work-desc">コード進行管理アプリを実際に使ってもらった友人の意見をもとに機能を大幅追加したバージョンです。コード機能（T/SD/D）の表示、オンコード対応、歌詞入力など実践的な作曲支援機能を追加しました。</p>
+                <div class="work-features">
+                    <div class="work-feature">コードの役割表示（T/SD/D）</div>
+                    <div class="work-feature">オンコード対応（C/E形式）</div>
+                    <div class="work-feature">歌詞入力（セクション単位）</div>
+                    <div class="work-feature">PNG・HTML・JSONエクスポート</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>22</strong> クラス</div><div class="stat"><strong>5,771</strong> 行</div><div class="stat"><strong>Java 21</strong></div></div>
+                    <a href="https://github.com/juryer/ChordProgressionAppX" target="_blank" class="work-link">GitHub で見る →</a>
+                    <a href="https://github.com/juryer/ChordProgressionAppX/releases/tag/v5" target="_blank" class="work-link" style="background:#e545c8; margin-left:8px;">⬇ ダウンロード</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/ChordProgressionApp-Android/main/chordpro.png" alt="コード進行管理アプリAndroid版" style="width:100%; height:100%; object-fit:contain; display:block; background:#1a1a2e; padding:8px;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Java</span><span class="tag">Android</span><span class="tag">Gson</span></div>
+                <h3 class="work-title">コード進行管理アプリ（Android・ライト版）</h3>
+                <p class="work-desc">PC版コード進行管理アプリXをAndroidに移植したライト版です。横持ち固定でPC版に近いUIをめざし、外出先でちょっとした作曲のメモができるように設計しました。</p>
+                <div class="work-features">
+                    <div class="work-feature">PC版に近い横持ちUI</div>
+                    <div class="work-feature">楽曲エディタ（移調・歌詞入力）</div>
+                    <div class="work-feature">コード進行管理（並び替え・編集・削除）</div>
+                    <div class="work-feature">楽曲一覧・詳細表示</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>14</strong> クラス</div><div class="stat"><strong>1,423</strong> 行</div><div class="stat"><strong>Java 17</strong></div></div>
+                    <a href="https://github.com/juryer/ChordProgressionApp-Android" target="_blank" class="work-link">GitHub で見る →</a>
+		    <a href="https://github.com/juryer/ChordProgressionApp-Android/releases" target="_blank" class="work-link" style=margin-left:8px>APK をダウンロード →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/izakayakaikei/main/kaikeikanri.png" alt="居酒屋会計アプリアイコン" style="width:100%; height:100%; object-fit:contain; display:block; background:#2c1810; padding:16px;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Java</span><span class="tag">Android</span><span class="tag">Gson</span></div>
+                <h3 class="work-title">居酒屋会計アプリ</h3>
+                <p class="work-desc">居酒屋での会計業務を効率化するために開発したAndroidアプリです。AIを活用しながら、あまりアプリ操作に詳しくない人でも使えることを意識して設計・開発しました。</p>
+                <div class="work-features">
+                    <div class="work-feature">テーブルごとの注文管理・金額集計</div>
+                    <div class="work-feature">月別・日別の売上管理</div>
+                    <div class="work-feature">消費税計算・原価管理・純利益計算</div>
+                    <div class="work-feature">午前6時切り替えの営業日管理</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>18</strong> クラス</div><div class="stat"><strong>2,150</strong> 行</div><div class="stat"><strong>Java 17</strong></div></div>
+                    <a href="https://github.com/juryer/izakayakaikei" target="_blank" class="work-link">GitHub で見る →</a>
+		    <a href="https://github.com/juryer/izakayakaikei/releases/tag/v1.0" target="_blank" class="work-link" style=margin-left:8px>APK をダウンロード →</a>
+                </div>
+            </div>
+        </div>
+        <div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/sub-Manager-Android/main/subkanri.png" alt="サブスク管理アプリアイコン" style="width:100%; height:220px; object-fit:cover; object-position:center center; display:block; background:#1a1a2e;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Kotlin</span><span class="tag">Android</span><span class="tag">Gson</span></div>
+                <h3 class="work-title">サブスク管理アプリ</h3>
+                <p class="work-desc">月々のサブスク費用を管理・確認するツールです。シンプルな設計を心がけました。</p>
+                <div class="work-features">
+                    <div class="work-feature">サブスクの登録・編集・削除</div>
+                    <div class="work-feature">月額合計金額の自動計算</div>
+                    <div class="work-feature">シンプルなデザインのUI</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>5</strong> クラス</div><div class="stat"><strong>約400</strong> 行</div><div class="stat"><strong>Kotlin 1.9</strong></div></div>
+                    <a href="https://github.com/juryer/sub-Manager-Android" target="_blank" class="work-link">GitHub で見る →</a>
+                    <a href="https://github.com/juryer/sub-Manager-Android/releases" target="_blank" class="work-link" style=margin-left:8px>APK をダウンロード →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="work-card reveal">
+            <div class="work-thumb">
+                <img src="https://raw.githubusercontent.com/juryer/tamago_log/main/tamalog.jpg" alt="たまログ" style="width:100%; height:100%; object-fit:cover; display:block;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Java</span><span class="tag">Spring Boot</span><span class="tag">MyBatis</span><span class="tag">Thymeleaf</span><span class="tag">PostgreSQL</span></div>
+                <h3 class="work-title">たまログ</h3>
+                <p class="work-desc">たまご料理に特化したレシピ共有Webアプリです。初めてのチーム開発で設計・実装を担当しました。ユーザー認証からCRUD・検索・お気に入りまで一通りの機能を実装しています。
+                職業訓練校で使用した教科書の復習・実践を行うことを目的としました。</p>
+                <div class="work-features">
+                    <div class="work-feature">Spring Securityによるユーザー認証</div>
+                    <div class="work-feature">レシピ投稿・編集・削除（画像アップロード対応）</div>
+                    <div class="work-feature">カテゴリー・キーワード検索</div>
+                    <div class="work-feature">お気に入り登録・ランキング機能</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>チーム開発</strong></div><div class="stat"><strong>Spring Boot 3.5</strong></div><div class="stat"><strong>Java 21</strong></div></div>
+                    <a href="https://github.com/juryer/tamago_log" target="_blank" class="work-link">GitHub で見る →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="work-card reveal">
+            <div class="work-thumb" style="background: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 50%, #1a1a2e 100%);">
+                <img src="https://raw.githubusercontent.com/juryer/slot-battle/main/janshi.png" alt="スロットバトル" style="width:100%; height:220px; object-fit:cover; object-position:center center; display:block;">
+            </div>
+            <div class="work-body">
+                <div class="work-tags"><span class="tag">Java</span><span class="tag">JavaFX</span><span class="tag">Eclipse</span><span class="tag">Canvas API</span></div>
+                <h3 class="work-title">スロットバトル</h3>
+                <p class="work-desc">スロットの出目でダメージを与え合う対戦ゲームです。個性的な能力を持つキャラクター5人から選択でき、CPU戦・対人戦の両方に対応しています。JavaFXの学習を目的として制作しました。</p>
+                <div class="work-features">
+                    <div class="work-feature">Canvas APIによる縦スクロールリールアニメーション</div>
+                    <div class="work-feature">Timeline・AnimationTimerによる各種演出</div>
+                    <div class="work-feature">キャラクター固有能力システム</div>
+                    <div class="work-feature">目押しチャンス・BIG WIN演出</div>
+                </div>
+                <div class="work-meta">
+                    <div class="work-stats"><div class="stat"><strong>13</strong> クラス</div><div class="stat"><strong>JavaFX 21</strong></div><div class="stat"><strong>Java 21</strong></div></div>
+                    <a href="https://github.com/juryer/slot-battle" target="_blank" class="work-link">GitHub で見る →</a>
+    <div class="section-label">Skills</div>
+    <h2 class="section-title reveal">使用技術</h2>
+    <div class="skills-grid">
+        <div class="skill-group reveal">
+            <div class="skill-group-title">言語</div>
+            <div class="skill-list">
+                <span class="skill-chip">Java</span>
+                <span class="skill-chip">Kotlin</span>
+            </div>
+        </div>
+        <div class="skill-group reveal">
+            <div class="skill-group-title">フレームワーク・ライブラリ</div>
+            <div class="skill-list">
+                <span class="skill-chip">Spring Boot</span>
+                <span class="skill-chip">Spring Security</span>
+                <span class="skill-chip">MyBatis</span>
+                <span class="skill-chip">Thymeleaf</span>
+                <span class="skill-chip">Swing</span>
+                <span class="skill-chip">JavaFX</span>
+                <span class="skill-chip">Gson</span>
+                <span class="skill-chip">Android SDK</span>
+                <span class="skill-chip">LiveData</span>
+                <span class="skill-chip">ViewModel</span>
+            </div>
+        </div>
+        <div class="skill-group reveal">
+            <div class="skill-group-title">データベース・ツール・環境</div>
+            <div class="skill-list">
+                <span class="skill-chip">PostgreSQL</span>
+                <span class="skill-chip">Eclipse</span>
+                <span class="skill-chip">Android Studio</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="footer-name">J・K</div>
+    <div class="footer-links">
+        <a href="#about">自己紹介</a>
+        <a href="#works">制作物</a>
+        <a href="#skills">スキル</a>
+        <a href="https://github.com/juryer" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">© 2026 J・K. All rights reserved.</div>
+</footer>
+
+<script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          const siblings = e.target.parentElement.querySelectorAll('.reveal');
+          siblings.forEach((el, i) => { el.style.transitionDelay = (i * 0.1) + 's'; });
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
