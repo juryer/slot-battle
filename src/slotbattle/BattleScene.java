@@ -23,16 +23,6 @@ public class BattleScene {
     private static final int CPU_STOP_MS = 400;
     private static final int COLS = 3;
 
-    // リールパターン定義
-    private static final Symbol[][] REEL_PATTERN = {
-        { Symbol.SEVEN, Symbol.BELL, Symbol.CHERRY, Symbol.WATERMELON, Symbol.BAR,
-          Symbol.STAR, Symbol.REPLAY, Symbol.BELL, Symbol.WATERMELON, Symbol.STAR },
-        { Symbol.BELL, Symbol.WATERMELON, Symbol.SEVEN, Symbol.STAR, Symbol.CHERRY,
-          Symbol.REPLAY, Symbol.BAR, Symbol.STAR, Symbol.BELL, Symbol.WATERMELON },
-        { Symbol.WATERMELON, Symbol.BAR, Symbol.STAR, Symbol.BELL, Symbol.SEVEN,
-          Symbol.CHERRY, Symbol.STAR, Symbol.REPLAY, Symbol.WATERMELON, Symbol.BELL }
-    };
-
     // ゲーム状態
     private GameController gc;
     private Stage stage;
@@ -41,14 +31,15 @@ public class BattleScene {
     private boolean isMeOshiChance = false;
     private boolean isVsMode = false;
     private CharacterData p1Chara, p2Chara;
-    private int replayCount = 0; // リプレイ連続回数
-    private static final int MAX_REPLAY = 3; // リプレイ上限
+    private int replayCount = 0;
+    private static final int MAX_REPLAY = 3;
 
     // リール
-    private ReelCanvas[] playerReels = new ReelCanvas[COLS]; // 1P/プレイヤーリール
-    private ReelCanvas[] cpuReels    = new ReelCanvas[COLS]; // CPU/2Pリール
+    private ReelCanvas[] playerReels = new ReelCanvas[COLS];
+    private ReelCanvas[] cpuReels    = new ReelCanvas[COLS];
     private int stoppedCount = 0;
-    private SpinResult pendingResult = null;
+    private int[] pendingOffsets = null; // 停止オフセット
+    private boolean meOshiOffsetDecided = false; // 目押しチャンス時のoffset確定フラグ
     private final Random rng = new Random();
 
     // 画像
@@ -123,6 +114,8 @@ public class BattleScene {
         cpuHpLabel    = new Label(p2Name + "  HP: 100");
         playerHpLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
         cpuHpLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
+        playerHpLabel.setTextFill(Color.WHITE);
+        cpuHpLabel.setTextFill(Color.WHITE);
         HBox hpBox = new HBox(8, playerHpLabel, playerHpBar, new Region(), cpuHpBar, cpuHpLabel);
         HBox.setHgrow(((Region) hpBox.getChildren().get(2)), Priority.ALWAYS);
         hpBox.setAlignment(Pos.CENTER);
@@ -137,14 +130,15 @@ public class BattleScene {
         spinNumberLabel = new Label("スピン 1");
         phaseLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
         spinNumberLabel.setFont(Font.font("Monospaced", 13));
-        phaseLabel.setTextFill(Color.DARKBLUE);
+        spinNumberLabel.setTextFill(Color.WHITE);
+        phaseLabel.setTextFill(Color.SKYBLUE);
         HBox turnBox = new HBox(16, phaseLabel, spinNumberLabel);
         turnBox.setAlignment(Pos.CENTER);
 
         // ===== ReelCanvas作成 =====
         for (int i = 0; i < COLS; i++) {
-            playerReels[i] = new ReelCanvas(REEL_PATTERN[i], symbolImages);
-            cpuReels[i]    = new ReelCanvas(REEL_PATTERN[i], symbolImages);
+            playerReels[i] = new ReelCanvas(SlotMachine.REEL_PATTERNS[i], symbolImages);
+            cpuReels[i]    = new ReelCanvas(SlotMachine.REEL_PATTERNS[i], symbolImages);
         }
 
         // プレイヤーリールボックス
@@ -184,6 +178,7 @@ public class BattleScene {
 
         HBox charReelBox = new HBox(24, playerSide, vsLabel, cpuSide);
         charReelBox.setAlignment(Pos.CENTER);
+        charReelBox.setStyle("-fx-background-color: rgba(0,0,0,0.4); -fx-background-radius: 12; -fx-padding: 8;");
 
         // ===== STOPボタン =====
         HBox stopBox = new HBox(4);
@@ -216,28 +211,50 @@ public class BattleScene {
         logArea = new TextArea();
         logArea.setEditable(false);
         logArea.setFont(Font.font("Monospaced", 12));
-        logArea.setPrefHeight(100);
+        logArea.setPrefHeight(75);
         logArea.setWrapText(true);
 
         // ===== レイアウト =====
-        VBox content = new VBox(8,
+        VBox content = new VBox(5,
             hpBox, new Separator(), turnBox,
             charReelBox, stopBox,
             resultLabel, startButton,
             new Separator(), logArea
         );
-        content.setPadding(new Insets(12));
+        content.setPadding(new Insets(8));
         content.setAlignment(Pos.TOP_CENTER);
+
+        // 主要UI要素を半透明パネルで囲んで視認性確保
+        hpBox.setStyle("-fx-background-color: rgba(0,0,0,0.55); -fx-background-radius: 8; -fx-padding: 6 10;");
+        turnBox.setStyle("-fx-background-color: rgba(0,0,0,0.55); -fx-background-radius: 8; -fx-padding: 4 12;");
+        resultLabel.setStyle("-fx-background-color: rgba(0,0,0,0.55); -fx-background-radius: 6; -fx-padding: 2 14;");
+        logArea.setStyle("-fx-control-inner-background: rgba(20,20,20,0.75); -fx-text-fill: white;");
+
+        // ===== 背景画像 =====
+        ImageView bgView = new ImageView();
+        try {
+            java.net.URL bgUrl = getClass().getResource("/resources/images/casino_bg.png");
+            if (bgUrl != null) {
+                bgView.setImage(new Image(bgUrl.toExternalForm()));
+                bgView.setPreserveRatio(false);
+                bgView.setFitWidth(820);
+                bgView.setFitHeight(660);
+            }
+        } catch (Exception e) { System.err.println("背景画像読み込み失敗"); }
+
+        // 背景を少し暗くする半透明オーバーレイ
+        javafx.scene.shape.Rectangle dimOverlay = new javafx.scene.shape.Rectangle(820, 660);
+        dimOverlay.setFill(Color.color(0, 0, 0, 0.3));
 
         overlayPane = new Pane();
         overlayPane.setMouseTransparent(true);
 
-        StackPane root = new StackPane(content, overlayPane);
+        StackPane root = new StackPane(bgView, dimOverlay, content, overlayPane);
 
         appendLog("=== スロットバトル開始！ ===");
         appendLog("STARTを押してスロットを回してください。\n");
 
-        return new Scene(root, 820, 720);
+        return new Scene(root, 820, 660);
     }
 
     // ――― START ―――
@@ -245,7 +262,9 @@ public class BattleScene {
         if (gc.isGameOver() || spinInProgress) return;
         spinInProgress = true;
         stoppedCount = 0;
-        pendingResult = null;
+        pendingOffsets = null;
+        meOshiOffsetDecided = false;
+        judgeInProgress = false;
         resultLabel.setText("");
         startButton.setDisable(true);
 
@@ -262,48 +281,54 @@ public class BattleScene {
 
     // ――― プレイヤースピン ―――
     private void startPlayerSpin() {
-        // 使うリール（1Pターン=playerReels、2Pターン=cpuReels）
+        // 目押しチャンス時はハズレoffset（どの役も成立しない状態から始める）
+        pendingOffsets = isMeOshiChance
+            ? gc.spinOffsetsMeOshiFail(isPlayerTurn)
+            : gc.spinOffsets(isPlayerTurn);
         ReelCanvas[] active = activeReels();
+        double speedMul = gc.getReelSpeed(isPlayerTurn);
         for (int i = 0; i < COLS; i++) {
             stopButtons[i].setDisable(false);
-            active[i].startSpin();
+            active[i].startSpin(speedMul);
         }
     }
 
     // ――― CPUスピン ―――
     private void startCpuSpin() {
-        SpinResult cpuSpin;
-        if (isMeOshiChance) {
+        int[] offsets;
+        boolean cpuMeOshi = isMeOshiChance;
+        if (cpuMeOshi) {
             boolean success = rng.nextInt(100) < 30;
-            cpuSpin = success ? gc.getMeOshiSuccessResult(false) : gc.getMeOshiFailResult(false);
+            offsets = success
+                ? gc.spinOffsetsMeOshiSuccess(false)
+                : gc.spinOffsetsMeOshiFail(false);
             appendLog("  CPU 目押しチャンス発生！→ " + (success ? "成功！" : "失敗..."));
         } else {
-            cpuSpin = gc.spinOnce(false);
+            offsets = gc.spinOffsets(false);
         }
         isMeOshiChance = false;
-        pendingResult = cpuSpin;
+        pendingOffsets = offsets;
 
-        boolean cpuMeOshi = cpuSpin.getDescription().contains("目押し");
-
-        // CPUリールを回してから自動停止
-        for (int i = 0; i < COLS; i++) cpuReels[i].startSpin();
+        for (int i = 0; i < COLS; i++) cpuReels[i].startSpin(gc.getReelSpeed(false));
 
         cpuStopTimers.clear();
         for (int i = 0; i < COLS; i++) {
             final int col = i;
-            final Symbol target = cpuSpin.getReels()[col];
+            final int targetOffset = offsets[col];
             int delay = cpuMeOshi ? 200 * (col + 1) : CPU_STOP_MS * (col + 1);
             PauseTransition pt = new PauseTransition(Duration.millis(delay));
             pt.setOnFinished(e -> {
-                // コールバックを先に設定してから停止
                 cpuReels[col].setOnStopped(sym -> {
-                    stoppedCount++;
-                    if (stoppedCount >= COLS) onSpinComplete(pendingResult, false);
+                    boolean allStopped = true;
+                    for (ReelCanvas r : cpuReels) {
+                        if (r.isSpinning()) { allStopped = false; break; }
+                    }
+                    if (allStopped && !judgeInProgress) onAllStopped(false);
                 });
                 if (cpuMeOshi) {
-                    cpuReels[col].requestStopImmediate(target);
+                    cpuReels[col].requestStopImmediate(SlotMachine.REEL_PATTERNS[col][targetOffset]);
                 } else {
-                    cpuReels[col].requestStop(target);
+                    cpuReels[col].requestStopAtOffset(targetOffset);
                 }
             });
             cpuStopTimers.add(pt);
@@ -321,126 +346,85 @@ public class BattleScene {
 
         stopButtons[col].setDisable(true);
 
-        // 目押しチャンス：1リール目を止めた時点で全リールの出目を確定
-        // 2・3リール目は別途STOPで止める
-        if (isMeOshiChance && pendingResult == null) {
-            // 全リールのアニメーションを即停止して出目を記録
-            Symbol[] centers = new Symbol[COLS];
-            for (int i = 0; i < COLS; i++) {
-                centers[i] = active[i].freezeAndGetCenter();
-            }
-            // 出目からSpinResultを生成
-            pendingResult = buildMeOshiResult(centers);
-            isMeOshiChance = false;
-            // 止めていないリールは再度スピン開始（見た目は回り続ける）
-            for (int i = 0; i < COLS; i++) {
-                if (i != col) active[i].startSpin();
-            }
-        } else if (pendingResult == null) {
-            pendingResult = gc.spinOnce(isPlayerTurn);
-        }
-
-        // コールバックを先に設定してから停止
+        final boolean turnSnapshot = isPlayerTurn;
         active[col].setOnStopped(sym -> {
-            stoppedCount++;
-            if (stoppedCount >= COLS) onSpinComplete(pendingResult, isPlayerTurn);
+            // 全リールが止まったか確認
+            ReelCanvas[] activeNow = (isVsMode && !turnSnapshot) ? cpuReels : playerReels;
+            boolean allStopped = true;
+            for (ReelCanvas r : activeNow) {
+                if (r.isSpinning()) { allStopped = false; break; }
+            }
+            if (allStopped && !judgeInProgress) onAllStopped(turnSnapshot);
         });
 
-        Symbol target = pendingResult.getReels()[col];
-        boolean wasMeOshi = pendingResult.getDescription().contains("目押し");
-        if (wasMeOshi) {
-            active[col].requestStopImmediate(target);
-        } else {
-            active[col].requestStop(target);
+        active[col].requestStopAtOffset(pendingOffsets[col]);
+    }
+
+    private boolean judgeInProgress = false; // 判定の二重呼び出し防止
+
+    // ――― 全リール停止後の処理 ―――
+    private void onAllStopped(boolean wasPlayerTurn) {
+        if (judgeInProgress) return;
+        judgeInProgress = true;
+
+        ReelCanvas[] reels = wasPlayerTurn ? playerReels : cpuReels;
+        Symbol[][] grid = new Symbol[COLS][3];
+        for (int col = 0; col < COLS; col++) {
+            Symbol[] column = reels[col].getCurrentColumn();
+            for (int row = 0; row < 3; row++) grid[col][row] = column[row];
         }
+
+        SpinResult sr = gc.judgeGrid(grid, wasPlayerTurn);
+
+        // 目押しチャンスフラグをリセット
+        if (isMeOshiChance) isMeOshiChance = false;
+
+        highlightReels(sr, reels);
+        onSpinComplete(sr, wasPlayerTurn);
     }
 
     private ReelCanvas[] activeReels() {
         return (isVsMode && !isPlayerTurn) ? cpuReels : playerReels;
     }
 
-    // 目押しフリー：止めた出目から役を判定してSpinResultを生成
-    private SpinResult buildMeOshiResult(Symbol[] centers) {
-        Symbol r1 = centers[0], r2 = centers[1], r3 = centers[2];
-
-        // 中央3揃い判定
-        if (r1 == r2 && r2 == r3) {
-            return buildTripleResult(r1, r2, r3);
-        }
-
-        // 斜め判定（左上→右下、左下→右上）は3×3グリッド必要なので
-        // 各リールの現在の3行を取得
-        ReelCanvas[] active = activeReels();
-        Symbol[][] grid = new Symbol[3][3];
-        for (int col = 0; col < COLS; col++) {
-            Symbol[] col3 = active[col].getCurrentColumn();
-            for (int row = 0; row < 3; row++) grid[col][row] = col3[row];
-        }
-
-        // 斜め左上→右下
-        if (grid[0][0] == grid[1][1] && grid[1][1] == grid[2][2] && grid[0][0] != Symbol.STAR && grid[0][0] != Symbol.MISS) {
-            return buildTripleResult(grid[0][0], grid[1][1], grid[2][2]);
-        }
-        // 斜め左下→右上
-        if (grid[0][2] == grid[1][1] && grid[1][1] == grid[2][0] && grid[0][2] != Symbol.STAR && grid[0][2] != Symbol.MISS) {
-            return buildTripleResult(grid[0][2], grid[1][1], grid[2][0]);
-        }
-
-        // 揃いなし→ハズレ
-        Symbol[][] fullGrid = grid;
-        return new SpinResult(new Symbol[]{r1, r2, r3}, fullGrid, 0, false, false, "目押し...ハズレ");
-    }
-
-    private SpinResult buildTripleResult(Symbol s1, Symbol s2, Symbol s3) {
-        Symbol[][] grid = new Symbol[3][3];
-        ReelCanvas[] active = activeReels();
-        for (int col = 0; col < COLS; col++) {
-            Symbol[] col3 = active[col].getCurrentColumn();
-            for (int row = 0; row < 3; row++) grid[col][row] = col3[row];
-        }
-
-        int damage = 0;
-        boolean isReplay = false;
-        String desc;
-        Symbol sym = s1;
-
-        switch (sym) {
-            case SEVEN:      damage = 30; desc = "！！７７７！！ BIG WIN！！（目押し成功！）"; break;
-            case BAR:        damage = 25; desc = "BAR BAR BAR！！（目押し成功！）"; break;
-            case BELL:       damage = 15; desc = "ベルベルベル！（目押し成功！）"; break;
-            case WATERMELON: damage = 15; desc = "スイカスイカスイカ！（目押し成功！）"; break;
-            case REPLAY:     isReplay = true; desc = "リプレイ！もう1スピン！（目押し成功！）"; break;
-            default:         desc = "目押し...ハズレ"; break;
-        }
-
-        SpinResult sr = new SpinResult(new Symbol[]{s1, s2, s3}, grid, damage, isReplay, false, desc);
-        if (isReplay || damage > 0) {
-            gc.getPlayerStats().record(sr);
-        }
-        return sr;
-    }
-
-    // ――― 全停止後に成立行を一斉ハイライト ―――
+    // ――― 全停止後に成立ラインを一斉ハイライト ―――
     private void highlightReels(SpinResult sr, ReelCanvas[] reels) {
-        // ハズレ・★ゴミ役は全部暗くする（highlightRow=-1扱いで全行暗く）
-        String desc = sr.getDescription();
-        if (desc.equals("ハズレ") || desc.contains("ゴミ") || desc.contains("失敗")) {
-            for (ReelCanvas reel : reels) {
-                reel.setHighlightRow(-1); // 全行暗く
-            }
+        int line = sr.getWinLine();
+
+        if (line == SpinResult.LINE_NONE) {
+            // ハズレ：全行暗く
+            for (ReelCanvas reel : reels) reel.setHighlightRow(-1);
             return;
         }
-        // それ以外は中央行（row=1）をハイライト
-        for (ReelCanvas reel : reels) {
-            reel.setHighlightRow(1);
+
+        switch (line) {
+            case SpinResult.LINE_TOP:
+                for (ReelCanvas reel : reels) reel.setHighlightRow(0);
+                break;
+            case SpinResult.LINE_MID:
+                for (ReelCanvas reel : reels) reel.setHighlightRow(1);
+                break;
+            case SpinResult.LINE_BOT:
+                for (ReelCanvas reel : reels) reel.setHighlightRow(2);
+                break;
+            case SpinResult.LINE_DIAG_D:
+                reels[0].setHighlightRow(0);
+                reels[1].setHighlightRow(1);
+                reels[2].setHighlightRow(2);
+                break;
+            case SpinResult.LINE_DIAG_U:
+                reels[0].setHighlightRow(2);
+                reels[1].setHighlightRow(1);
+                reels[2].setHighlightRow(0);
+                break;
+            default:
+                for (ReelCanvas reel : reels) reel.setHighlightRow(1);
+                break;
         }
     }
 
     // ――― スピン完了 ―――
     private void onSpinComplete(SpinResult sr, boolean wasPlayerTurn) {
-        // 全リール停止後に一斉ハイライト
-        highlightReels(sr, activeReels());
-
         showResult(sr);
         appendLog(String.format("  スピン%d [%s]: %s",
             gc.getSpinNumber(), getTurnName(wasPlayerTurn), sr.toString()));
@@ -450,15 +434,19 @@ public class BattleScene {
         int waitMs = sr.getDescription().contains("７７７") ? 2800 : 900;
         PauseTransition pause = new PauseTransition(Duration.millis(waitMs));
         pause.setOnFinished(e -> {
-            gc.applySpinDamage(wasPlayerTurn, sr.getDamage());
-            updateHpDisplay();
-            spinInProgress = false;
-            pendingResult  = null;
-            stoppedCount   = 0;
+            spinInProgress  = false;
+            pendingOffsets  = null;
+            stoppedCount    = 0;
+            judgeInProgress = false;
 
-            if (gc.isGameOver()) { endGame(); return; }
+            // ===== エクストラゲーム中 =====
+            if (gc.getPhase() == GameController.Phase.EXTRA_P1_TURN
+                || gc.getPhase() == GameController.Phase.EXTRA_P2_TURN) {
+                handleExtraSpinComplete(sr, wasPlayerTurn);
+                return;
+            }
 
-            // リプレイ
+            // ===== リプレイ =====
             if (sr.isReplay() && replayCount < MAX_REPLAY) {
                 replayCount++;
                 appendLog("  ★ リプレイ！もう1スピン！（" + replayCount + "/" + MAX_REPLAY + "）");
@@ -474,33 +462,104 @@ public class BattleScene {
                 }
                 return;
             }
-
-            // リプレイ上限に達した場合はハズレ扱いでターン交代
             if (sr.isReplay() && replayCount >= MAX_REPLAY) {
                 appendLog("  リプレイ上限（" + MAX_REPLAY + "回）に達しました");
             }
-
             replayCount = 0;
-            isPlayerTurn = !wasPlayerTurn;
-            spinNumberLabel.setText("スピン " + gc.getSpinNumber());
 
-            if (isPlayerTurn || isVsMode) {
+            // ===== メインゲーム：1P→2Pの順でスピン、両者完了後に同時ダメージ =====
+            if (wasPlayerTurn) {
+                // 1Pのダメージを保留して2Pターンへ
+                gc.recordPlayerDamage(sr.getDamage());
+                isPlayerTurn = false;
+
+                if (isVsMode) {
+                    phaseLabel.setText("【" + getTurnName(false) + "のターン】");
+                    phaseLabel.setTextFill(Color.SALMON);
+                    startButton.setText("🎰  START");
+                    startButton.setDisable(false);
+                } else {
+                    scheduleCpuTurn(600);
+                }
+            } else {
+                // 2P側のダメージを記録→両者同時適用
+                gc.recordCpuDamageAndApply(sr.getDamage());
+                updateHpDisplay();
+
+                if (gc.getPhase() == GameController.Phase.EXTRA_P1_TURN) {
+                    // 両者同時KO → エクストラゲーム開始
+                    startExtraGame();
+                    return;
+                }
+                if (gc.isGameOver()) { endGame(); return; }
+
+                // 通常進行：次のターンへ
+                spinNumberLabel.setText("スピン " + gc.getSpinNumber());
+                isPlayerTurn = true;
                 cancelCpuStopTimers();
                 cancelPendingCpuTurn();
-                phaseLabel.setText("【" + getTurnName(isPlayerTurn) + "のターン】");
-                phaseLabel.setTextFill(isPlayerTurn ? Color.DARKBLUE : Color.DARKRED);
+                phaseLabel.setText("【" + getTurnName(true) + "のターン】");
+                phaseLabel.setTextFill(Color.SKYBLUE);
                 startButton.setText("🎰  START");
                 startButton.setDisable(false);
-            } else {
-                scheduleCpuTurn(600);
             }
         });
         pause.play();
     }
 
+    // ===== エクストラゲーム開始 =====
+    private void startExtraGame() {
+        appendLog("\n=== 両者同時に倒れた！エクストラゲーム開始！ ===");
+        appendLog("先に７７７またはBAR BAR BARを引いた方が勝利！");
+        isPlayerTurn = true;
+        phaseLabel.setText("【エクストラゲーム：" + getTurnName(true) + "のターン】");
+        phaseLabel.setTextFill(Color.GOLD);
+        spinNumberLabel.setText("EXTRA " + gc.getSpinNumber());
+        startButton.setText("🎰 EXTRA START");
+        startButton.setDisable(false);
+        cancelCpuStopTimers();
+        cancelPendingCpuTurn();
+    }
+
+    // ===== エクストラゲームのスピン完了処理 =====
+    private void handleExtraSpinComplete(SpinResult sr, boolean wasPlayerTurn) {
+        boolean won = gc.isExtraWinSymbol(sr);
+        appendLog(won ? "  🎯 ７か BAR を引いた！" : "  ハズレ...");
+
+        if (wasPlayerTurn) {
+            gc.recordExtraP1(sr);
+            isPlayerTurn = false;
+
+            if (isVsMode) {
+                phaseLabel.setText("【エクストラゲーム：" + getTurnName(false) + "のターン】");
+                phaseLabel.setTextFill(Color.GOLD);
+                startButton.setText("🎰 EXTRA START");
+                startButton.setDisable(false);
+            } else {
+                scheduleCpuTurn(600);
+            }
+        } else {
+            boolean decided = gc.recordExtraP2AndJudge(sr);
+            if (decided) {
+                endGame();
+                return;
+            }
+            // 相殺：もう一度1Pから
+            appendLog("  両者の結果が同じ（相殺）！もう一度！");
+            spinNumberLabel.setText("EXTRA " + gc.getSpinNumber());
+            isPlayerTurn = true;
+            cancelCpuStopTimers();
+            cancelPendingCpuTurn();
+            phaseLabel.setText("【エクストラゲーム：" + getTurnName(true) + "のターン】");
+            phaseLabel.setTextFill(Color.GOLD);
+            startButton.setText("🎰 EXTRA START");
+            startButton.setDisable(false);
+        }
+    }
+
     private void scheduleCpuTurn(int delayMs) {
         phaseLabel.setText("【CPU のターン】");
-        phaseLabel.setTextFill(Color.DARKRED);
+        phaseLabel.setTextFill(Color.SALMON);
         startButton.setText("🤖  CPU ターン中...");
         pendingCpuTurnPause = new PauseTransition(Duration.millis(delayMs));
         pendingCpuTurnPause.setOnFinished(ev -> { pendingCpuTurnPause = null; onStartPressed(); });
@@ -670,12 +729,12 @@ public class BattleScene {
         else if (sr.getDamage() >= 25) resultLabel.setTextFill(Color.ORANGERED);
         else if (sr.getDamage() >= 15) resultLabel.setTextFill(Color.ORANGE);
         else if (sr.getDamage() >   0) resultLabel.setTextFill(Color.GOLD);
-        else                           resultLabel.setTextFill(Color.LIGHTGRAY);
+        else                           resultLabel.setTextFill(Color.DARKSLATEGRAY);
     }
 
     private ImageView loadCharImage(String path) {
         ImageView iv = new ImageView();
-        iv.setFitWidth(120); iv.setFitHeight(110); iv.setPreserveRatio(true);
+        iv.setFitWidth(100); iv.setFitHeight(92); iv.setPreserveRatio(true);
         try {
             java.net.URL url = getClass().getResource(path);
             if (url != null) iv.setImage(new Image(url.toExternalForm()));

@@ -2,7 +2,11 @@ package slotbattle;
 
 public class GameController {
 
-    public enum Phase { PLAYER_TURN, CPU_TURN, PLAYER_WIN, CPU_WIN }
+    public enum Phase {
+        PLAYER_TURN, CPU_TURN,        // メインゲーム
+        EXTRA_P1_TURN, EXTRA_P2_TURN, // エクストラゲーム
+        PLAYER_WIN, CPU_WIN, DRAW_PENDING
+    }
 
     private final Fighter player;
     private final Fighter cpu;
@@ -10,16 +14,17 @@ public class GameController {
     private final SlotMachine cpuSlot;
     private Phase phase;
     private int spinNumber;
+    private boolean extraMode = false;
+
+    // 保留ダメージ（両者スピン後に同時適用するため）
+    private int pendingPlayerDamage = 0;
+    private int pendingCpuDamage    = 0;
 
     private final BattleStats playerStats = new BattleStats();
     private final BattleStats cpuStats    = new BattleStats();
 
-    // デフォルト（キャラ補正なし）
-    public GameController() {
-        this(null, null);
-    }
+    public GameController() { this(null, null); }
 
-    // キャラ指定コンストラクタ
     public GameController(CharacterData playerChara, CharacterData cpuChara) {
         player     = new Fighter("プレイヤー", 100);
         cpu        = new Fighter("CPU", 100);
@@ -29,8 +34,23 @@ public class GameController {
         spinNumber = 1;
     }
 
-    public SpinResult spinOnce(boolean isPlayer) {
-        SpinResult sr = isPlayer ? playerSlot.spin() : cpuSlot.spin();
+    // 通常スピン：停止オフセットを返す
+    public int[] spinOffsets(boolean isPlayer) {
+        return isPlayer ? playerSlot.spinOffsets() : cpuSlot.spinOffsets();
+    }
+
+    public int[] spinOffsetsMeOshiSuccess(boolean isPlayer) {
+        SlotMachine slot = isPlayer ? playerSlot : cpuSlot;
+        return slot.spinOffsetsMeOshiSuccess();
+    }
+
+    public int[] spinOffsetsMeOshiFail(boolean isPlayer) {
+        SlotMachine slot = isPlayer ? playerSlot : cpuSlot;
+        return slot.spinOffsetsMeOshiFail();
+    }
+
+    public SpinResult judgeGrid(Symbol[][] grid, boolean isPlayer) {
+        SpinResult sr = GridJudge.judge(grid);
         if (isPlayer) playerStats.record(sr);
         else          cpuStats.record(sr);
         return sr;
@@ -40,50 +60,94 @@ public class GameController {
         return isPlayer ? playerSlot.rollMeOshiChance() : cpuSlot.rollMeOshiChance();
     }
 
-    public SpinResult getMeOshiSuccessResult(boolean isPlayer) {
-        SlotMachine slot = isPlayer ? playerSlot : cpuSlot;
-        SpinResult sr = slot.spinMeOshiSuccess();
-        if (isPlayer) playerStats.record(sr); else cpuStats.record(sr);
-        return sr;
-    }
-
-    public SpinResult getMeOshiFailResult(boolean isPlayer) {
-        SlotMachine slot = isPlayer ? playerSlot : cpuSlot;
-        SpinResult sr = slot.spinMeOshiFail();
-        if (isPlayer) playerStats.record(sr); else cpuStats.record(sr);
-        return sr;
-    }
-
-    // キャラ情報取得
-    public CharacterData getPlayerChara() { return playerSlot.getChara(); }
-    public CharacterData getCpuChara()    { return cpuSlot.getChara(); }
-
-    // リール速度倍率取得
-    public double getPlayerReelSpeed() {
-        CharacterData c = playerSlot.getChara();
-        return c != null ? c.getReelSpeedMultiplier() : 1.0;
-    }
-
-    // 目押し時★なし判定
     public boolean isNoStarInMeOshi(boolean isPlayer) {
         CharacterData c = isPlayer ? playerSlot.getChara() : cpuSlot.getChara();
         return c != null && c.isNoStarInMeOshi();
     }
 
-    public void applySpinDamage(boolean isPlayer, int damage) {
-        if (isPlayer) cpu.takeDamage(damage);
-        else          player.takeDamage(damage);
+    public double getPlayerReelSpeed() {
+        CharacterData c = playerSlot.getChara();
+        return c != null ? c.getReelSpeedMultiplier() : 1.0;
+    }
 
-        if (!cpu.isAlive())       phase = Phase.PLAYER_WIN;
-        else if (!player.isAlive()) phase = Phase.CPU_WIN;
-        else if (isPlayer)         phase = Phase.CPU_TURN;
-        else {
+    public double getReelSpeed(boolean isPlayer) {
+        CharacterData c = isPlayer ? playerSlot.getChara() : cpuSlot.getChara();
+        return c != null ? c.getReelSpeedMultiplier() : 1.0;
+    }
+
+    // ――― メインゲーム：1Pのスピン結果を保留 ―――
+    public void recordPlayerDamage(int damage) {
+        pendingPlayerDamage = damage;
+    }
+
+    // ――― メインゲーム：2Pのスピン結果を保留してダメージ同時適用 ―――
+    // 戻り値: true = 両者のスピンが完了してダメージ適用済み
+    public void recordCpuDamageAndApply(int cpuDamage) {
+        pendingCpuDamage = cpuDamage;
+        applyBothDamage();
+    }
+
+    // 両者のダメージを同時適用してHP判定
+    private void applyBothDamage() {
+        cpu.takeDamage(pendingPlayerDamage);
+        player.takeDamage(pendingCpuDamage);
+
+        boolean playerDead = !player.isAlive();
+        boolean cpuDead    = !cpu.isAlive();
+
+        pendingPlayerDamage = 0;
+        pendingCpuDamage    = 0;
+
+        if (playerDead && cpuDead) {
+            // 両者同時KO → エクストラゲームへ
+            extraMode = true;
+            phase = Phase.EXTRA_P1_TURN;
+        } else if (cpuDead) {
+            phase = Phase.PLAYER_WIN;
+        } else if (playerDead) {
+            phase = Phase.CPU_WIN;
+        } else {
             phase = Phase.PLAYER_TURN;
             playerStats.incrementTurn();
             cpuStats.incrementTurn();
             spinNumber++;
         }
     }
+
+    // ――― エクストラゲーム：7/BARを引いたか判定 ―――
+    public boolean isExtraWinSymbol(SpinResult sr) {
+        String desc = sr.getDescription();
+        return desc.contains("７７７") || desc.contains("BAR BAR BAR");
+    }
+
+    // エクストラゲーム：1P結果を保留
+    private boolean extraP1Won = false;
+
+    public void recordExtraP1(SpinResult sr) {
+        extraP1Won = isExtraWinSymbol(sr);
+    }
+
+    // エクストラゲーム：2P結果を判定して勝敗決定
+    // 戻り値: true = 決着, false = 相殺・引き続き
+    public boolean recordExtraP2AndJudge(SpinResult sr) {
+        boolean extraP2Won = isExtraWinSymbol(sr);
+
+        if (extraP1Won && !extraP2Won) {
+            phase = Phase.PLAYER_WIN;
+            return true;
+        } else if (!extraP1Won && extraP2Won) {
+            phase = Phase.CPU_WIN;
+            return true;
+        } else {
+            // 両方引いた or 両方引かなかった → 相殺、次のターンへ
+            extraP1Won = false;
+            phase = Phase.EXTRA_P1_TURN;
+            spinNumber++;
+            return false;
+        }
+    }
+
+    public boolean isExtraMode() { return extraMode; }
 
     public Phase getPhase()             { return phase; }
     public Fighter getPlayer()          { return player; }

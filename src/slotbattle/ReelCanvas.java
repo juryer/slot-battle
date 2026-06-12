@@ -47,12 +47,14 @@ public class ReelCanvas extends Canvas {
     }
 
     // ――― スピン開始 ―――
-    public void startSpin() {
+    public void startSpin() { startSpin(1.0); }
+
+    public void startSpin(double speedMultiplier) {
         spinning      = true;
         stopping      = false;
         stoppedSymbol = null;
         isHighlighted = false;
-        speed         = MAX_SPEED;
+        speed         = MAX_SPEED * speedMultiplier;
         scrollY       = 0;
         onStopped     = null; // コールバックをリセット
 
@@ -66,7 +68,25 @@ public class ReelCanvas extends Canvas {
         timer.start();
     }
 
-    // ――― 停止要求 ―――
+    // ――― 停止要求（patternOffsetを指定して止める） ―――
+    public void requestStopAtOffset(int targetOffset) {
+        if (!spinning || stopping) return;
+        stopping = true;
+        // patternOffsetは減る方向にスクロール
+        // targetOffsetに到達 = centerIndex = (targetOffset + 1) % len
+        stopTargetIndex = (targetOffset + 1) % pattern.length;
+        // findTargetIndexと同じ方向（減る方向）で探す
+        // 現在のcenterIndexからtargetOffsetまでの距離を計算して正しい方向に設定
+        int len = pattern.length;
+        int currentCenter = getCenterIndex();
+        int targetCenter  = (targetOffset + 1) % len;
+        // 現在位置からtargetまで「減る方向」に何コマあるか
+        int dist = (currentCenter - targetCenter + len) % len;
+        if (dist == 0) dist = len; // 既に到達してる場合は1周させる
+        stopTargetIndex = targetCenter;
+    }
+
+    // ――― 停止要求（中央行に止める・後方互換） ―――
     public void requestStop(Symbol targetCenter) {
         if (!spinning || stopping) return;
         stopping = true;
@@ -75,8 +95,20 @@ public class ReelCanvas extends Canvas {
 
     // ――― 目押し判定用：タイマーを即停止して現在の中央シンボルを返す ―――
     public Symbol freezeAndGetCenter() {
-        if (timer != null) timer.stop(); // 即座にアニメーション停止
+        if (timer != null) timer.stop();
         return getCenterSymbol();
+    }
+
+    // ――― 目押しチャンス用：タイマーだけ止めてspinning状態は維持 ―――
+    public void freezeReel() {
+        if (timer != null) timer.stop();
+        scrollY = 0; // スクロール位置をスナップ
+        drawFrame();
+    }
+
+    // 現在のpatternOffsetを返す
+    public int getCurrentOffset() {
+        return patternOffset;
     }
 
     // ――― 即時停止（目押しチャンス用） ―――
@@ -108,14 +140,15 @@ public class ReelCanvas extends Canvas {
         boolean reached = (centerIdx == stopTargetIndex);
 
         if (reached) {
-            if (scrollY < SNAP_DIST) {
+            if (scrollY < Math.max(SNAP_DIST, speed)) {
                 scrollY       = 0;
                 spinning      = false;
                 stopping      = false;
                 stoppedSymbol = pattern[centerIdx];
-                isHighlighted = false; // 全停止後にBattleScene側からハイライトする
+                isHighlighted = false;
                 timer.stop();
                 drawFrame();
+                playStopShake();
                 if (onStopped != null) onStopped.accept(stoppedSymbol);
             }
         }
@@ -136,15 +169,7 @@ public class ReelCanvas extends Canvas {
             Image img  = images.get(sym);
             double y   = row * CELL_H + scrollY - CELL_H;
 
-            double alpha;
-            if (!spinning && isHighlighted) {
-                // 停止後：highlightRow=-1なら全行暗く、それ以外は成立行だけ明るく
-                alpha = (highlightRow == -1) ? 0.25 : (row == highlightRow) ? 1.0 : 0.25;
-            } else {
-                // 回転中：中央に近いほど明るい
-                double centerDist = Math.abs((y + CELL_H / 2.0) - (CELL_H + CELL_H / 2.0));
-                alpha = Math.max(0.35, 1.0 - centerDist / (CELL_H * 1.8));
-            }
+            double alpha = 1.0; // 常に全行均一
 
             gc.setGlobalAlpha(alpha);
             if (img != null) {
@@ -197,12 +222,13 @@ public class ReelCanvas extends Canvas {
         return pattern[getCenterIndex()];
     }
 
-    // 現在表示中の3行分の図柄を取得（目押しフリー判定用）
+    // 現在表示中の3行分の図柄を取得（画面と完全一致）
     public Symbol[] getCurrentColumn() {
         int len = pattern.length;
         Symbol[] col = new Symbol[3];
+        // drawFrameの描画: row=1→上段, row=2→中段, row=3→下段（scrollY=0時）
         for (int row = 0; row < 3; row++) {
-            int idx = ((patternOffset + row) % len + len) % len;
+            int idx = ((patternOffset + row + 1) % len + len) % len;
             col[row] = pattern[idx];
         }
         return col;
@@ -221,6 +247,17 @@ public class ReelCanvas extends Canvas {
     public void setOnStopped(Consumer<Symbol> cb) { this.onStopped = cb; }
     public boolean isSpinning()      { return spinning; }
     public Symbol getStoppedSymbol() { return stoppedSymbol; }
+
+    // ――― 停止時の震動演出 ―――
+    private void playStopShake() {
+        javafx.animation.TranslateTransition shake =
+            new javafx.animation.TranslateTransition(javafx.util.Duration.millis(180), this);
+        shake.setByY(-5);
+        shake.setCycleCount(4);
+        shake.setAutoReverse(true);
+        shake.setOnFinished(e -> setTranslateY(0));
+        shake.play();
+    }
 
     // 成立行を設定（0=上, 1=中央, 2=下）
     public void setHighlightRow(int row) {
